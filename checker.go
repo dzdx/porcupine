@@ -1,7 +1,9 @@
 package porcupine
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -59,12 +61,47 @@ func makeEntries(history []Operation) []entry {
 	return entries
 }
 
+func formatNodeList(n *node) string {
+	sb := strings.Builder{}
+	for n != nil {
+		sb.WriteString(n.String())
+		if n.next != nil {
+			sb.WriteString(" --> ")
+		}
+		n = n.next
+	}
+	return sb.String()
+}
+
 type node struct {
 	value interface{}
 	match *node // call if match is nil, otherwise return
 	id    int
 	next  *node
 	prev  *node
+}
+
+func (n *node) fmtValue() string {
+	if _, ok := n.value.(int); ok {
+		return fmt.Sprintf("%d", n.value)
+	} else if n.value == nil {
+		return "nil"
+	} else {
+		return fmt.Sprintf("%s", n.value)
+	}
+
+}
+func (n *node) String() string {
+	sb := strings.Builder{}
+	if n.match != nil {
+		sb.WriteString(fmt.Sprintf("{call(%d)", n.id))
+	} else {
+		sb.WriteString(fmt.Sprintf("{ret(%d)", n.id))
+	}
+	sb.WriteString(",value=")
+	sb.WriteString(n.fmtValue())
+	sb.WriteString("}")
+	return sb.String()
 }
 
 func insertBefore(n *node, mark *node) *node {
@@ -156,6 +193,10 @@ type callsEntry struct {
 	state interface{}
 }
 
+func (e callsEntry) String() string {
+	return fmt.Sprintf("{entry=%s, state=%v}", e.entry, e.state)
+}
+
 func lift(entry *node) {
 	entry.prev.next = entry.next
 	entry.next.prev = entry.prev
@@ -187,13 +228,24 @@ func checkSingle(model Model, history []entry, computePartial bool, kill *int32)
 
 	state := model.Init()
 	headEntry := insertBefore(&node{value: nil, match: nil, id: -1}, entry)
+	i := -1
 	for headEntry.next != nil {
+		i++
 		if atomic.LoadInt32(kill) != 0 {
 			return false, longest
 		}
+		fmt.Printf("---------------------------%d---------------------------------\n", i)
+		fmt.Printf("---------------------------%d---------------------------------\n", i)
+		fmt.Printf("heads: %s\n", formatNodeList(headEntry.next))
+		fmt.Printf("calls: %s\n", calls)
+		fmt.Printf("entry: %s\n", entry)
+		fmt.Printf("match: %s\n", entry.match)
+		fmt.Printf("state: %v\n", state)
+		fmt.Printf("liner: %s\n", linearized)
 		if entry.match != nil {
 			matching := entry.match // the return entry
 			ok, newState := model.Step(state, entry.value, matching.value)
+			fmt.Printf("step:  ok=%t, newState=%v\n", ok, newState)
 			if ok {
 				newLinearized := linearized.clone().set(uint(entry.id))
 				newCacheEntry := cacheEntry{newLinearized, newState}

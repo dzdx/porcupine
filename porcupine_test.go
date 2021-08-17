@@ -17,6 +17,14 @@ type registerInput struct {
 	value int
 }
 
+func (i registerInput) String() string {
+	if i.op {
+		return fmt.Sprintf("(get)")
+	} else {
+		return fmt.Sprintf("(put %d)", i.value)
+	}
+}
+
 // a sequential specification of a register
 var registerModel = Model{
 	Init: func() interface{} {
@@ -59,6 +67,7 @@ func TestRegisterModel(t *testing.T) {
 		t.Fatal("expected operations to be linearizable")
 	}
 
+	return
 	// same example as above, but with Event
 	events := []Event{
 		{0, CallEvent, registerInput{false, 100}, 0},

@@ -1,6 +1,9 @@
 package porcupine
 
-import "math/bits"
+import (
+	"math/bits"
+	"strings"
+)
 
 type bitset []uint64
 
@@ -14,6 +17,19 @@ func newBitset(bits uint) bitset {
 	}
 	chunks := bits/64 + extra
 	return bitset(make([]uint64, chunks))
+}
+func (b bitset) String() string {
+	sb := strings.Builder{}
+	count := b.popcnt()
+	for i := 0; count > 0; i++ {
+		if b.get(uint(i)) {
+			sb.WriteString("1")
+			count--
+		} else {
+			sb.WriteString("0")
+		}
+	}
+	return sb.String()
 }
 
 func (b bitset) clone() bitset {
